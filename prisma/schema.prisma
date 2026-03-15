@@ -11,11 +11,23 @@ model VisitSession {
   id           String   @id @default(cuid())
   sessionId    String   @unique
   visitCount   Int      @default(0)
+  
+  // Enriched visitor context
+  userAgent    String?
+  device       String?
+  browser      String?
+  os           String?
+  country      String?
+  referrer     String?
+  utmSource    String?
+  
+  firstSeen    DateTime @default(now())
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   interactions Interaction[]
   themeHistory ThemeHistory[]
+  visitorEvents VisitorEvent[]
 }
 
 // Full snapshot of every theme render — the LLM training dataset
@@ -24,19 +36,35 @@ model ThemeHistory {
   sessionId       String
   themeName       String
   visitNumber     Int
+  
   // Full AI-generated theme object (JSON string)
   themeJson       String   @default("{}")
   // Full AI-rewritten content snapshot (JSON string)
   contentJson     String   @default("{}")
+  
+  // LLM Training: Input side
+  preferenceContextJson String @default("{}")
+  promptHash            String?
+  
+  // LLM Training: Output side (denormalized fast query fields)
+  shapeLanguage         String?
+  iconSet               String?
+  animationStyle        String?
+
   // Engagement metrics — updated after the visitor leaves
   engagementScore Float    @default(0)
   timeSpent       Float    @default(0)
   scrollDepth     Float    @default(0)
   clickCount      Int      @default(0)
+  
+  // LLM Training: Label 
+  performanceLabel String? // "high" | "medium" | "low"
+
   createdAt       DateTime @default(now())
 
   session      VisitSession  @relation(fields: [sessionId], references: [sessionId])
   interactions Interaction[]
+  visitorEvents VisitorEvent[]
 
   @@index([sessionId])
 }
@@ -51,6 +79,25 @@ model Interaction {
   eventType      String   // "scroll", "click", "time", "section_view"
   value          Float    // scroll %, time in seconds, click count
   metadata       String?  // JSON string for extra data
+  createdAt      DateTime @default(now())
+
+  session      VisitSession  @relation(fields: [sessionId], references: [sessionId])
+  themeHistory ThemeHistory? @relation(fields: [themeHistoryId], references: [id])
+
+  @@index([sessionId])
+  @@index([themeHistoryId])
+}
+
+// Richer, semantic events for analytics and LLM training labels
+model VisitorEvent {
+  id             String   @id @default(cuid())
+  sessionId      String
+  themeHistoryId String?
+  eventType      String   // "cta_click", "project_expand", "section_dwell", "contact_submit"
+  sectionId      String?
+  dwellSeconds   Float?
+  elementId      String?
+  payload        String?
   createdAt      DateTime @default(now())
 
   session      VisitSession  @relation(fields: [sessionId], references: [sessionId])

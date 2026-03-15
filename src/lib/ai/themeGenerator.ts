@@ -1,5 +1,7 @@
-import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
-import { Theme, PreferenceContext, AnimationStyle, LayoutSchema } from '../types';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import Groq from 'groq-sdk';
+import { Theme, PreferenceContext, AnimationStyle } from '../types';
+import { prisma } from '../db';
 
 const THEME_CATALOG = [
     'Forest Trail',
@@ -35,6 +37,7 @@ const FALLBACK_THEME: Theme = {
         bodyWeight: '400',
     },
     layoutSchema: {
+        pageArchitecture: 'standard',
         heroStyle: 'immersive-full',
         sectionOrder: ['hero', 'about', 'projects', 'contact', 'footer'],
         sectionStyle: 'prose-block',
@@ -52,30 +55,34 @@ const FALLBACK_THEME: Theme = {
 
 export class ThemeGenerationEngine {
     private genAI: GoogleGenerativeAI;
+    private groq: Groq | null;
 
     constructor() {
         const apiKey = process.env.GEMINI_API_KEY;
-        if (!apiKey) {
-            throw new Error('GEMINI_API_KEY not set');
-        }
+        if (!apiKey) throw new Error('GEMINI_API_KEY not set');
         this.genAI = new GoogleGenerativeAI(apiKey);
+        this.groq = process.env.GROQ_API_KEY ? new Groq({ apiKey: process.env.GROQ_API_KEY }) : null;
     }
 
-    async generate(context: PreferenceContext): Promise<Theme> {
-        try {
-            const model = this.genAI.getGenerativeModel({
-                model: 'gemini-2.5-flash-lite',
-                generationConfig: {
-                    responseMimeType: 'application/json',
-                    temperature: 0.85,
-                },
-            });
+    private parseThemeJSON(text: string): Theme {
+        const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        const parsed: Theme = JSON.parse(jsonStr);
+        return {
+            ...parsed,
+            animationStyle: parsed.animationStyle || 'flowing',
+            layoutSchema: {
+                ...parsed.layoutSchema,
+                pageArchitecture: parsed.layoutSchema?.pageArchitecture || 'standard',
+            }
+        };
+    }
 
-            const availableThemes = THEME_CATALOG.filter(
-                (t) => !context.recentThemes.slice(0, 4).includes(t)
-            );
+    private shouldUseGroq(): boolean {
+        return this.groq !== null && Math.random() < 0.5;
+    }
 
-            const prompt = `You are a symbolic design intelligence. Your task is to choose and fully design a metaphoric theme for a personal portfolio website.
+    private buildPrompt(context: PreferenceContext, availableThemes: string[]): string {
+        return `You are a symbolic design intelligence. Your task is to choose and fully design a metaphoric theme for a personal portfolio website.
 
 ## Context About This Visitor
 - Visit number: ${context.visitCount}
@@ -91,15 +98,23 @@ ${availableThemes.join(', ')}
 Select the MOST SYMBOLICALLY APPROPRIATE theme from the list above based on the visitor's behavior pattern. Then fully design the visual and content system for that theme.
 
 Symbolic reasoning rules:
-- "reader" pattern → richer text themes (Library, Temple, Observatory)
-- "explorer" pattern → more interactive/multi-zone themes (Bazaar, Coral Reef, Orchestra)
-- "scanner" pattern → visually striking, efficient themes (Space Station, Clockwork, Neon Bazaar)
+- "reader" pattern -> richer text themes (Library, Temple, Observatory)
+- "explorer" pattern -> more interactive/multi-zone themes (Bazaar, Coral Reef, Orchestra)
+- "scanner" pattern -> visually striking, efficient themes (Space Station, Clockwork, Neon Bazaar)
 - If the theme is "Orchestra" or musical: use "soundwaves" shapeLanguage and "musical" iconSet.
 - If the theme is "Forest Trail" or nature-based: use "organic-curves" shapeLanguage and "nature" iconSet.
 - If the theme is "Clockwork" or "Space": use "sharp-cuts" shapeLanguage and "mechanical" or "celestial" iconSet.
-- High engagement (>0.6) → more complex/layered themes
-- Low engagement (<0.3) → simpler, more welcoming themes
-- First visit → choose an accessible, impressionable theme
+- High engagement (>0.6) -> more complex/layered themes
+- Low engagement (<0.3) -> simpler, more welcoming themes
+- First visit -> choose an accessible, impressionable theme
+
+Architecture rules (choose a pageArchitecture that is DIFFERENT from visit to visit):
+- "terminal" works best for "scanner" interaction types or technical themes (Space Station, Clockwork Machine).
+- "editorial" works best for "reader" types (Library, Temple, Observatory).
+- "bento-grid" works best for "explorer" types (Bazaar, Coral Reef, Orchestra).
+- "cinematic" works best for high-engagement returning visitors who appreciate visual storytelling (Forest Trail, Ocean Trench).
+- "manifesto" works best for bold, statement-making themes with high confidence visitors (Neon Bazaar, Ancient Temple, Desert Observatory).
+- "standard" is the safe default for first visits.
 
 Respond with a single JSON object matching this EXACT structure:
 {
@@ -123,6 +138,7 @@ Respond with a single JSON object matching this EXACT structure:
     "bodyWeight": "CSS font-weight string"
   },
   "layoutSchema": {
+    "pageArchitecture": "standard|bento-grid|terminal|editorial|cinematic|manifesto",
     "heroStyle": "immersive-full|minimal-centered|split-screen|typographic",
     "sectionOrder": ["hero","about","projects","contact","footer"],
     "sectionStyle": "prose-block|card-mosaic|timeline|constellation",
@@ -136,84 +152,77 @@ Respond with a single JSON object matching this EXACT structure:
   "contentTone": "string (e.g. 'poetic-naturalist', 'precise-engineer', 'ancient-sage')",
   "symbolicReasoning": "string (2-3 sentences explaining WHY this theme fits this visitor)"
 }`;
+    }
 
-            // Quota Exceeded Workaround (20 req / day limit hit)
-            // const result = await model.generateContent(prompt);
-            // const text = result.response.text();
-            // const parsed = JSON.parse(text) as Theme;
+    private async generateWithGemini(prompt: string): Promise<Theme> {
+        const model = this.genAI.getGenerativeModel({
+            model: 'gemini-2.5-flash-lite',
+            generationConfig: { responseMimeType: 'application/json', temperature: 0.9 },
+        });
+        const result = await model.generateContent(prompt);
+        return this.parseThemeJSON(result.response.text());
+    }
 
-            const isMusical = Math.random() > 0.5;
-            const parsed: Theme = isMusical ? {
-                themeName: 'Soundwave Symphony',
-                philosophy: 'The world is rhythm, waiting for a conductor.',
-                colorPalette: {
-                    background: '#1a0b16',
-                    surface: '#2d142c',
-                    primary: '#ff3366',
-                    secondary: '#8a2be2',
-                    accent: '#00ffff',
-                    text: '#f2f2f2',
-                    textMuted: '#a890a5',
-                    border: '#4a2546'
-                },
-                typography: {
-                    headingFont: "'Playfair Display', serif",
-                    bodyFont: "'Inter', sans-serif",
-                    scale: 'normal',
-                    headingWeight: '700',
-                    bodyWeight: '400'
-                },
-                layoutSchema: {
-                    heroStyle: 'typographic',
-                    sectionOrder: ['hero', 'projects', 'about', 'contact', 'footer'],
-                    sectionStyle: 'timeline',
-                    gridStyle: 'asymmetric',
-                    contactStyle: 'call-card',
-                    spacing: 'expansive'
-                },
-                shapeLanguage: 'soundwaves',
-                iconSet: 'musical',
-                animationStyle: 'rhythmic',
-                contentTone: 'poetic-naturalist',
-                symbolicReasoning: 'This visitor is highly engaged and explores content rhythmically.'
-            } : {
-                themeName: 'Forest Trail',
-                philosophy: 'Organic emergence from roots to canopy.',
-                colorPalette: {
-                    background: '#f4f1ea',
-                    surface: '#ffffff',
-                    primary: '#2e5c31',
-                    secondary: '#8b9a46',
-                    accent: '#e28743',
-                    text: '#2c362d',
-                    textMuted: '#677568',
-                    border: '#dce0d9'
-                },
-                typography: {
-                    headingFont: "'Lora', serif",
-                    bodyFont: "'Source Sans Pro', sans-serif",
-                    scale: 'loose',
-                    headingWeight: '600',
-                    bodyWeight: '400'
-                },
-                layoutSchema: {
-                    heroStyle: 'immersive-full',
-                    sectionOrder: ['hero', 'about', 'projects', 'contact', 'footer'],
-                    sectionStyle: 'card-mosaic',
-                    gridStyle: 'organic-flow',
-                    contactStyle: 'minimal-form',
-                    spacing: 'airy'
-                },
-                shapeLanguage: 'organic-curves',
-                iconSet: 'nature',
-                animationStyle: 'flowing',
-                contentTone: 'poetic-naturalist',
-                symbolicReasoning: 'This visitor prefers natural, welcoming layouts based on past reading patterns.'
-            };
+    private async generateWithGroq(prompt: string): Promise<Theme> {
+        const completion = await this.groq!.chat.completions.create({
+            model: 'llama-3.3-70b-versatile',
+            messages: [{ role: 'user', content: prompt }],
+            temperature: 0.9,
+            response_format: { type: 'json_object' },
+        });
+        const text = completion.choices[0]?.message?.content || '{}';
+        return this.parseThemeJSON(text);
+    }
 
-            return parsed;
+    async generate(context: PreferenceContext): Promise<Theme> {
+        const availableThemes = THEME_CATALOG.filter(
+            (t) => !context.recentThemes.slice(0, 4).includes(t)
+        );
+        const prompt = this.buildPrompt(context, availableThemes);
+
+        try {
+            const usedModel = this.shouldUseGroq() ? 'groq-llama3-70b' : 'gemini-2.5-flash-lite';
+            console.log(`[ThemeGenerationEngine] Using model: ${usedModel}`);
+
+            if (usedModel === 'groq-llama3-70b') {
+                return await this.generateWithGroq(prompt);
+            } else {
+                return await this.generateWithGemini(prompt);
+            }
         } catch (error) {
-            console.error('[ThemeGenerationEngine] Error, using fallback:', error);
+            console.warn('[ThemeGenerationEngine] API failed (rate limit/quota). Attempting DB fallback...', error);
+
+            try {
+                const highPerformingTheme = await prisma.themeHistory.findFirst({
+                    where: {
+                        engagementScore: { gt: 0.7 },
+                        themeName: { notIn: context.recentThemes },
+                    },
+                    orderBy: { engagementScore: 'desc' }
+                });
+
+                const finalFallbackTheme = highPerformingTheme || await prisma.themeHistory.findFirst({
+                    where: { engagementScore: { gt: 0.7 } },
+                    orderBy: { engagementScore: 'desc' }
+                });
+
+                if (finalFallbackTheme && finalFallbackTheme.themeJson) {
+                    console.log(`[ThemeGenerationEngine] DB Fallback: Serving '${finalFallbackTheme.themeName}'`);
+                    const dbTheme = JSON.parse(finalFallbackTheme.themeJson) as Theme;
+                    return {
+                        ...dbTheme,
+                        animationStyle: dbTheme.animationStyle || 'flowing',
+                        layoutSchema: {
+                            ...dbTheme.layoutSchema,
+                            pageArchitecture: dbTheme.layoutSchema?.pageArchitecture || 'standard',
+                        }
+                    };
+                }
+            } catch (dbError) {
+                console.error('[ThemeGenerationEngine] DB fallback also failed:', dbError);
+            }
+
+            console.warn('[ThemeGenerationEngine] Returning static FALLBACK_THEME');
             return FALLBACK_THEME;
         }
     }

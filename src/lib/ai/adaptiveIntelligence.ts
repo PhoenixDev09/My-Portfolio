@@ -1,13 +1,65 @@
 import { prisma } from '../db';
 import { PreferenceContext, Theme, RewrittenContent } from '../types';
 
+export interface VisitorContext {
+    sessionId: string;
+    url?: string;
+    userAgent?: string;
+    country?: string;
+    referrer?: string;
+}
+
 export class AdaptiveIntelligence {
-    async getPreferenceContext(sessionId: string): Promise<PreferenceContext> {
+    async getPreferenceContext(context: VisitorContext): Promise<PreferenceContext> {
         try {
+            // Very simple parser for device/browser from user agent (could be richer later)
+            const ua = context.userAgent || '';
+            const isMobile = ua.match(/Mobile|Android|iP(hone|od)|IEMobile|BlackBerry|Kindle|Silk-Accelerated|(hpw|web)OS|Opera M(obi|ini)/) ? 'mobile' : 'desktop';
+            
+            let browser = 'Unknown';
+            if (ua.includes('Firefox')) browser = 'Firefox';
+            else if (ua.includes('Chrome') && !ua.includes('Edg')) browser = 'Chrome';
+            else if (ua.includes('Safari') && !ua.includes('Chrome')) browser = 'Safari';
+            else if (ua.includes('Edg')) browser = 'Edge';
+
+            let os = 'Unknown';
+            if (ua.match(/Win/)) os = 'Windows';
+            else if (ua.match(/Mac/)) os = 'macOS';
+            else if (ua.match(/Linux/)) os = 'Linux';
+            else if (ua.match(/Android/)) os = 'Android';
+            else if (ua.match(/like Mac OS X/)) os = 'iOS';
+
+            let utmSource = undefined;
+            if (context.url) {
+                try {
+                    const urlObj = new URL(context.url);
+                    utmSource = urlObj.searchParams.get('utm_source') || undefined;
+                } catch { /* ignore */ }
+            }
+
             const session = await prisma.visitSession.upsert({
-                where: { sessionId },
-                update: { visitCount: { increment: 1 } },
-                create: { sessionId, visitCount: 1 },
+                where: { sessionId: context.sessionId },
+                update: {
+                    visitCount: { increment: 1 },
+                    userAgent: context.userAgent,
+                    device: isMobile,
+                    browser,
+                    os,
+                    country: context.country,
+                    referrer: context.referrer,
+                    utmSource,
+                },
+                create: {
+                    sessionId: context.sessionId,
+                    visitCount: 1,
+                    userAgent: context.userAgent,
+                    device: isMobile,
+                    browser,
+                    os,
+                    country: context.country,
+                    referrer: context.referrer,
+                    utmSource,
+                },
                 include: {
                     themeHistory: { orderBy: { createdAt: 'desc' }, take: 20 },
                     interactions: { orderBy: { createdAt: 'desc' }, take: 100 },
@@ -83,7 +135,7 @@ export class AdaptiveIntelligence {
                 .slice(0, 3);
 
             return {
-                sessionId,
+                sessionId: context.sessionId,
                 visitCount: session.visitCount,
                 recentThemes,
                 avgEngagement,
@@ -94,7 +146,7 @@ export class AdaptiveIntelligence {
         } catch (error) {
             console.error('[AdaptiveIntelligence] Error reading context:', error);
             return {
-                sessionId,
+                sessionId: context.sessionId,
                 visitCount: 1,
                 recentThemes: [],
                 avgEngagement: 0.5,
@@ -105,25 +157,24 @@ export class AdaptiveIntelligence {
         }
     }
 
-    /**
-     * Records a full theme render snapshot into ThemeHistory.
-     * Returns the new ThemeHistory row ID so it can be sent to the client
-     * and attached to subsequent Interaction events.
-     */
     async recordThemeVisit(
         sessionId: string,
         theme: Theme,
         content: RewrittenContent,
-        visitNumber: number
+        preferenceContext: PreferenceContext
     ): Promise<string> {
         try {
             const record = await prisma.themeHistory.create({
                 data: {
                     sessionId,
                     themeName: theme.themeName,
-                    visitNumber,
+                    visitNumber: preferenceContext.visitCount,
                     themeJson: JSON.stringify(theme),
                     contentJson: JSON.stringify(content),
+                    preferenceContextJson: JSON.stringify(preferenceContext),
+                    shapeLanguage: theme.shapeLanguage,
+                    iconSet: theme.iconSet,
+                    animationStyle: theme.animationStyle,
                     engagementScore: 0,
                 },
             });
@@ -166,6 +217,11 @@ export class AdaptiveIntelligence {
                 1,
                 scrollDepth * 0.4 + Math.min(timeSpent / 120, 1) * 0.4 + Math.min(clickCount / 10, 1) * 0.2
             );
+            
+            // LLM Training Label
+            let performanceLabel = 'low';
+            if (score > 0.65) performanceLabel = 'high';
+            else if (score > 0.35) performanceLabel = 'medium';
 
             await prisma.themeHistory.update({
                 where: { id: themeHistoryId },
@@ -174,6 +230,7 @@ export class AdaptiveIntelligence {
                     scrollDepth: scrollDepth * 100,
                     timeSpent,
                     clickCount,
+                    performanceLabel,
                 },
             });
         } catch (error) {

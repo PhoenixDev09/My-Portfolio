@@ -7,6 +7,10 @@ node_modules/
 .next/
 out/
 
+# TypeScript build info (generated, not needed in git)
+tsconfig.tsbuildinfo
+*.tsbuildinfo
+
 # Production
 build/
 
@@ -38,7 +42,9 @@ Thumbs.db
 *.swp
 *.swo
 
-# Test / verification scripts (optional to exclude)
+# One-off test scripts (not part of the project)
 test-session.mjs
 verify-pipeline.mjs
 list-models.mjs
+# Note: bootstrap-dataset.mjs, inspect-db.mjs, verify-db.mjs, truncate-db.mjs are committed
+# as they are useful developer tools for the project.

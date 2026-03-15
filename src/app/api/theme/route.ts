@@ -14,7 +14,8 @@ export async function GET(request: NextRequest) {
     try {
         // ── Session Management ─────────────────────────────────────────────────────
         const cookieStore = await cookies();
-        let sessionId = cookieStore.get('sym_session')?.value;
+        // Allow clients (like our bootstrapper) to pass session IDs via header
+        let sessionId = request.headers.get('x-session-id') || cookieStore.get('sym_session')?.value;
         const isNewSession = !sessionId;
         if (!sessionId) {
             sessionId = uuidv4();
@@ -22,7 +23,14 @@ export async function GET(request: NextRequest) {
 
         // ── Adaptive Intelligence ──────────────────────────────────────────────────
         const adaptiveAI = new AdaptiveIntelligence();
-        const preferenceContext = await adaptiveAI.getPreferenceContext(sessionId);
+        const visitorContext = {
+            sessionId,
+            url: request.url,
+            userAgent: request.headers.get('user-agent') || undefined,
+            country: request.headers.get('x-vercel-ip-country') || undefined,
+            referrer: request.headers.get('referer') || undefined,
+        };
+        const preferenceContext = await adaptiveAI.getPreferenceContext(visitorContext);
 
         // ── Theme Generation ───────────────────────────────────────────────────────
         const themeEngine = new ThemeGenerationEngine();
@@ -39,7 +47,7 @@ export async function GET(request: NextRequest) {
             sessionId,
             theme,
             content,
-            preferenceContext.visitCount
+            preferenceContext
         );
 
         // ── Response ───────────────────────────────────────────────────────────────

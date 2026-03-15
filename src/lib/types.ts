@@ -58,7 +58,10 @@ export interface Typography {
     bodyWeight: string;
 }
 
+export type PageArchitecture = 'standard' | 'bento-grid' | 'terminal' | 'editorial' | 'cinematic' | 'manifesto';
+
 export interface LayoutSchema {
+    pageArchitecture: PageArchitecture;
     heroStyle: 'immersive-full' | 'minimal-centered' | 'split-screen' | 'typographic';
     sectionOrder: SectionName[];
     sectionStyle: 'prose-block' | 'card-mosaic' | 'timeline' | 'constellation';
