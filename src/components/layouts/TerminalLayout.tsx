@@ -62,7 +62,7 @@ export default function TerminalLayout({ theme, content, core }: Props) {
                     {bootDone && (
                         <>
                             <div className="terminal__line terminal__line--divider">
-                                <span>{'─'.repeat(60)}</span>
+                                <div className="terminal__rule" />
                             </div>
                             <div className="terminal__line terminal__line--intro">
                                 <span className="terminal__key">NAME</span>
@@ -81,7 +81,7 @@ export default function TerminalLayout({ theme, content, core }: Props) {
                                 <span>         {core.contact.availability}</span>
                             </div>
                             <div className="terminal__line terminal__line--divider">
-                                <span>{'─'.repeat(60)}</span>
+                                <div className="terminal__rule" />
                             </div>
                             <div className="terminal__line terminal__line--hint">
                                 <span>Available commands: </span>
