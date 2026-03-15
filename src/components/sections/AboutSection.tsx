@@ -43,7 +43,7 @@ export default function AboutSection({ theme, content, core }: Props) {
                             </div>
                             <div className="about__meta-item">
                                 <span className="about__meta-label">Education</span>
-                                <span className="about__meta-value">MIT, B.S. Computer Science, 2019</span>
+                                <span className="about__meta-value">B.Tech, Computer Science — Ramachandra College of Engineering (2023)</span>
                             </div>
                         </div>
                     </div>
