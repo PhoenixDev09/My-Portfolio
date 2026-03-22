@@ -77,58 +77,115 @@ export class ThemeGenerationEngine {
         };
     }
 
-    private shouldUseGroq(): boolean {
-        return this.groq !== null && Math.random() < 0.5;
+    // LM-01: Route by directive intent rather than random 50/50.
+    // Groq (Llama 3.3 70b) excels at structured/technical output.
+    // Gemini excels at narrative, emotional, and metaphorical themes.
+    private shouldUseGroq(context: PreferenceContext): boolean {
+        if (!this.groq) return false;
+        const arch = context.directive.architecture;
+        const archetype = context.archetype;
+        // Technical archetypes and architectures → Groq
+        const isTechnical =
+            archetype === 'scanner' ||
+            archetype === 'explorer' ||
+            arch === 'terminal' ||
+            arch === 'bento-grid';
+        return isTechnical;
     }
 
-    private buildPrompt(context: PreferenceContext, availableThemes: string[]): string {
-        return `You are a symbolic design intelligence. Your task is to choose and fully design a metaphoric theme for a personal portfolio website.
+    private buildPrompt(context: PreferenceContext, availableThemes: string[], availableArchitectures: string[]): string {
+        const { directive, archetype, avgEngagement, topSection, scrollVelocityMedian, selectedText } = context;
 
-## Context About This Visitor
+        // ── A: Build the Constraint Block from the Orchestrator Directive ──────
+        let constraintBlock = '';
+
+        if (directive.mode === 'shock') {
+            constraintBlock = `
+## SHOCK MODE DIRECTIVE (Window Shopper Protocol)
+This visitor has high visit count but near-zero engagement. They are exploring for visual impact, not information.
+- Generate the most visually aggressive, structurally diverse theme possible.
+- Use maximum contrast colors, bold typography, punchy single-sentence descriptions.
+- Architecture MUST be one of: ${availableArchitectures.filter(a => ['manifesto', 'cinematic', 'bento-grid'].includes(a)).join(', ') || availableArchitectures[0]}
+- Text should be action-oriented and immediate. No philosophy. No metaphor. Just facts and numbers.`;
+
+        } else if (directive.mode === 'exploit') {
+            const contrast = directive.colorDNA?.luminance !== undefined
+                ? (directive.colorDNA.luminance < 0.2 ? 'DARK (luminance < 20%)' : 'LIGHT (luminance > 70%)')
+                : null;
+
+            constraintBlock = `
+## EXPLOIT DIRECTIVE — Reinforce Winning Aesthetic DNA
+This visitor has demonstrated measurable preference for specific design qualities. You MUST honor these constraints.
+${directive.architecture ? `- Architecture: STRICTLY USE "${directive.architecture}". This is mathematically the highest-engagement structure for this user.` : ''}
+${contrast && directive.colorDNA ? `- Color Palette: Generate a ${contrast} background. Primary hue should be near ${directive.colorDNA.hueDeg}° on the color wheel (±30° variation allowed). Saturation: ~${Math.round(directive.colorDNA.saturation * 100)}%.` : ''}
+${directive.typographicTone === 'narrative' ? '- Typography: Use serif or literary typefaces (Georgia, Playfair Display, Lora). This user reads deeply.' : ''}
+${directive.typographicTone === 'technical' ? '- Typography: Use monospace or geometric sans (JetBrains Mono, IBM Plex, Fira Code for headings). This user is a technical evaluator.' : ''}
+${directive.typographicTone === 'expressionist' ? '- Typography: Use display or slab typefaces. Bold and expressive.' : ''}
+${directive.densityPreference === 'dense' ? '- Content: Generate dense, metric-rich, information-packed copy.' : ''}
+${directive.densityPreference === 'minimal' ? '- Content: Generate spacious, philosophical, minimalist copy. Large breathing room.' : ''}`;
+
+        } else {
+            // EXPLORE mode — single-axis surprise
+            const exploredAxis = directive.exploreAxis || 'architecture';
+            constraintBlock = `
+## SINGLE-AXIS EXPLORATION DIRECTIVE
+We are intentionally exploring ONE design dimension while keeping all others consistent with this user's preferences.
+- BREAK AXIS: ${exploredAxis.toUpperCase()}
+${exploredAxis === 'architecture' ? `- Architecture: Choose something completely different from recent experience. Pick from: ${availableArchitectures.join(', ')}` : `- Architecture: KEEP "${directive.architecture || 'standard'}" as the structure.`}
+${exploredAxis === 'colorHue' ? `- Color: RADICALLY change the hue. If user is used to cool blues, go warm reds or earthy greens. Total palette inversion.` : directive.colorDNA ? `- Color: Maintain the user's preferred hue (~${directive.colorDNA.hueDeg}°) and ${directive.colorDNA.luminance < 0.3 ? 'dark' : 'light'} mode.` : ''}
+${exploredAxis === 'density' ? '- Content density: Flip it. If they liked dense, go minimal. If minimal, go dense.' : directive.densityPreference ? `- Density: Keep "${directive.densityPreference}" density.` : ''}
+${exploredAxis === 'typographicTone' ? '- Typography: Completely change the type personality. Try the opposite of what they normally see.' : directive.typographicTone ? `- Typography: Maintain the "${directive.typographicTone}" typographic tone.` : ''}`;
+        }
+
+        // ── B: Anti-affinity Block ────────────────────────────────────────────
+        const antiBlock = directive.antiArchitectures.length > 0
+            ? `\n## ANTI-AFFINITY (ABSOLUTE EXCLUSIONS)\nDo NOT use these architectures — they have been flagged as poor performers for this visitor:\n- Banned architectures: ${directive.antiArchitectures.join(', ')}`
+            : '';
+
+        // ── C: Behavioral Context ────────────────────────────────────────────
+        const behaviorBlock = `
+## Visitor Behavioral Profile
+- Archetype: ${archetype} (reader=deep scroll+time, explorer=clicks, scanner=fast velocity, investigator=contact dwell+text select, window-shopper=high visits+no engagement)
 - Visit number: ${context.visitCount}
-- Engagement level: ${context.avgEngagement.toFixed(2)} (0-1 scale, higher = more engaged)
-- Interaction style: ${context.dominantInteraction} (reader=reads deeply, explorer=clicks around, scanner=quick scroll)
+- Engagement level: ${avgEngagement.toFixed(2)} (0-1 scale)
+- Scroll velocity: ${scrollVelocityMedian} px/second (high = scanner, low = reader)
+- Most engaged section: ${topSection}
+- Copied/selected text: ${selectedText ? 'Yes — this user is deeply reading and investigating' : 'No'}
 - Preferred complexity: ${context.preferredComplexity}
-- Recent themes shown (avoid repeating): ${context.recentThemes.join(', ') || 'None yet'}
+- Recent themes (avoid repeating): ${context.recentThemes.join(', ') || 'None yet'}`;
 
-## Available Themes to Choose From
+        return `You are a symbolic design intelligence. Your task is to choose and fully design a metaphoric theme for a personal portfolio website.
+${behaviorBlock}
+${constraintBlock}
+${antiBlock}
+
+## Available Themes
 ${availableThemes.join(', ')}
 
-## Your Task
-Select the MOST SYMBOLICALLY APPROPRIATE theme from the list above based on the visitor's behavior pattern. Then fully design the visual and content system for that theme.
+## Content Faceting Rules
+- Rewrite ALL text fields to match the chosen metaphor and architecture.
+- GOLDEN RECORD: Preserve all factual data (technologies, metrics, project names, years). Only change framing/tone/vocabulary.
+- Dynamic headings: "aboutTitle" and "projectsTitle" must be creative and metaphorical, not generic.
+- For "terminal" or "manifesto": technical, precise, metric-forward text.
+- For "editorial" or "cinematic": human impact, narrative journeys, philosophical depth.
+- For "bento-grid": short punchy descriptions, scannable, headline-driven.
 
-Symbolic reasoning rules:
-- "reader" pattern -> richer text themes (Library, Temple, Observatory)
-- "explorer" pattern -> more interactive/multi-zone themes (Bazaar, Coral Reef, Orchestra)
-- "scanner" pattern -> visually striking, efficient themes (Space Station, Clockwork, Neon Bazaar)
-- If the theme is "Orchestra" or musical: use "soundwaves" shapeLanguage and "musical" iconSet.
-- If the theme is "Forest Trail" or nature-based: use "organic-curves" shapeLanguage and "nature" iconSet.
-- If the theme is "Clockwork" or "Space": use "sharp-cuts" shapeLanguage and "mechanical" or "celestial" iconSet.
-- High engagement (>0.6) -> more complex/layered themes
-- Low engagement (<0.3) -> simpler, more welcoming themes
-- First visit -> choose an accessible, impressionable theme
+## symbolicReasoning
+The "symbolicReasoning" field MUST explain to the user why this specific theme was chosen for THEM based on their behavioral data. Be specific: mention their archetype, scroll behaviour, or section preferences if relevant. This is displayed directly to the visitor.
 
-Architecture rules (choose a pageArchitecture that is DIFFERENT from visit to visit):
-- "terminal" works best for "scanner" interaction types or technical themes (Space Station, Clockwork Machine).
-- "editorial" works best for "reader" types (Library, Temple, Observatory).
-- "bento-grid" works best for "explorer" types (Bazaar, Coral Reef, Orchestra).
-- "cinematic" works best for high-engagement returning visitors who appreciate visual storytelling (Forest Trail, Ocean Trench).
-- "manifesto" works best for bold, statement-making themes with high confidence visitors (Neon Bazaar, Ancient Temple, Desert Observatory).
-- "standard" is the safe default for first visits.
-
-Respond with a single JSON object matching this EXACT structure:
+Respond with a SINGLE JSON object matching this EXACT structure:
 {
   "themeName": "string (must be one of the available themes)",
-  "philosophy": "string (one evocative sentence describing the metaphor's essence)",
+  "philosophy": "string (one evocative sentence)",
   "colorPalette": {
     "background": "hex color",
-    "surface": "hex color (slightly lighter/darker than bg)",
-    "primary": "hex color (dominant accent)",
+    "surface": "hex color",
+    "primary": "hex color",
     "secondary": "hex color",
-    "accent": "hex color (highlight)",
-    "text": "hex color (primary readable text)",
-    "textMuted": "hex color (secondary text)",
-    "border": "hex color (subtle borders)"
+    "accent": "hex color",
+    "text": "hex color",
+    "textMuted": "hex color",
+    "border": "hex color"
   },
   "typography": {
     "headingFont": "CSS font-family string",
@@ -138,7 +195,7 @@ Respond with a single JSON object matching this EXACT structure:
     "bodyWeight": "CSS font-weight string"
   },
   "layoutSchema": {
-    "pageArchitecture": "standard|bento-grid|terminal|editorial|cinematic|manifesto",
+    "pageArchitecture": "${availableArchitectures.join('|')}",
     "heroStyle": "immersive-full|minimal-centered|split-screen|typographic",
     "sectionOrder": ["hero","about","projects","contact","footer"],
     "sectionStyle": "prose-block|card-mosaic|timeline|constellation",
@@ -149,8 +206,8 @@ Respond with a single JSON object matching this EXACT structure:
   "shapeLanguage": "organic-curves|sharp-cuts|soundwaves|ornate-borders|none",
   "iconSet": "minimal|nature|mechanical|musical|celestial|archaic",
   "animationStyle": "flowing|mechanical|rhythmic|galactic|ancient|undulating|electric",
-  "contentTone": "string (e.g. 'poetic-naturalist', 'precise-engineer', 'ancient-sage')",
-  "symbolicReasoning": "string (2-3 sentences explaining WHY this theme fits this visitor)"
+  "contentTone": "string",
+  "symbolicReasoning": "string (2-3 sentences referencing their actual behavioral data)"
 }`;
     }
 
@@ -178,36 +235,48 @@ Respond with a single JSON object matching this EXACT structure:
         const availableThemes = THEME_CATALOG.filter(
             (t) => !context.recentThemes.slice(0, 4).includes(t)
         );
-        const prompt = this.buildPrompt(context, availableThemes);
+
+        // Exclude anti-affinity architectures AND recent 2 architectures
+        const ALL_ARCHITECTURES = ['standard', 'bento-grid', 'terminal', 'editorial', 'cinematic', 'manifesto', 'timeline', 'split-screen'];
+        const banned = new Set([
+            ...context.directive.antiArchitectures,
+            ...context.recentArchitectures.slice(0, 2),
+        ]);
+        let availableArchitectures = ALL_ARCHITECTURES.filter(a => !banned.has(a));
+        if (availableArchitectures.length === 0) availableArchitectures = ['standard'];
+
+        const prompt = this.buildPrompt(context, availableThemes, availableArchitectures);
 
         try {
-            const usedModel = this.shouldUseGroq() ? 'groq-llama3-70b' : 'gemini-2.5-flash-lite';
-            console.log(`[ThemeGenerationEngine] Using model: ${usedModel}`);
+            const usedModel = this.shouldUseGroq(context) ? 'groq-llama3-70b' : 'gemini-2.5-flash-lite';
+            console.log(`[ThemeGenerationEngine] Using model: ${usedModel} | Archetype: ${context.archetype} | Directive: ${context.directive.mode}`);
 
-            if (usedModel === 'groq-llama3-70b') {
+            if (this.shouldUseGroq(context)) {
                 return await this.generateWithGroq(prompt);
             } else {
                 return await this.generateWithGemini(prompt);
             }
         } catch (error) {
-            console.warn('[ThemeGenerationEngine] API failed (rate limit/quota). Attempting DB fallback...', error);
+            console.warn('[ThemeGenerationEngine] API failed. Attempting DB fallback...', error);
 
             try {
+                // LM-02: Threshold lowered to 0.3 (was 0.7) — 0.7 was never met in early sessions
+                // since engagementScore needs 84s + 70% scroll + 7 clicks to reach 0.7.
                 const highPerformingTheme = await prisma.themeHistory.findFirst({
                     where: {
-                        engagementScore: { gt: 0.7 },
+                        engagementScore: { gt: 0.3 },
                         themeName: { notIn: context.recentThemes },
                     },
                     orderBy: { engagementScore: 'desc' }
                 });
 
                 const finalFallbackTheme = highPerformingTheme || await prisma.themeHistory.findFirst({
-                    where: { engagementScore: { gt: 0.7 } },
+                    where: { engagementScore: { gt: 0.3 } },
                     orderBy: { engagementScore: 'desc' }
                 });
 
                 if (finalFallbackTheme && finalFallbackTheme.themeJson) {
-                    console.log(`[ThemeGenerationEngine] DB Fallback: Serving '${finalFallbackTheme.themeName}'`);
+                    console.log(`[ThemeGenerationEngine] DB Fallback: '${finalFallbackTheme.themeName}'`);
                     const dbTheme = JSON.parse(finalFallbackTheme.themeJson) as Theme;
                     return {
                         ...dbTheme,

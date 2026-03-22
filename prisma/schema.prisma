@@ -61,6 +61,7 @@ model ThemeHistory {
   
   // LLM Training: Label 
   performanceLabel String? // "high" | "medium" | "low"
+  explicitFeedback String? // "too_complex" | "perfect" | "too_simple"
 
   createdAt       DateTime @default(now())
 
@@ -69,6 +70,7 @@ model ThemeHistory {
   visitorEvents VisitorEvent[]
 
   @@index([sessionId])
+  @@index([engagementScore])                   // DB-07: fast fallback & DNA queries
 }
 
 // Fine-grained interaction events linked to a specific rendered theme
@@ -88,7 +90,9 @@ model Interaction {
 
   @@index([sessionId])
   @@index([themeHistoryId])
+  @@index([sessionId, createdAt])              // DB-08: fast ordered load of last 200 interactions
 }
+
 
 // Richer, semantic events for analytics and LLM training labels
 model VisitorEvent {

@@ -29,6 +29,9 @@ export async function GET(request: NextRequest) {
             userAgent: request.headers.get('user-agent') || undefined,
             country: request.headers.get('x-vercel-ip-country') || undefined,
             referrer: request.headers.get('referer') || undefined,
+            // AL-02: client sends x-morph: '1' when user clicks "Morph to My Style"
+            // This prevents visitCount from being inflated by in-session morphs
+            isMorph: request.headers.get('x-morph') === '1',
         };
         const preferenceContext = await adaptiveAI.getPreferenceContext(visitorContext);
 
@@ -57,6 +60,8 @@ export async function GET(request: NextRequest) {
             sessionId,
             visitNumber: preferenceContext.visitCount,
             themeHistoryId,
+            orbReasoning: preferenceContext.directive.orbReasoning,
+            archetype: preferenceContext.archetype,
         };
 
         const response = NextResponse.json(responseData);

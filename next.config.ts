@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Disable the Next.js dev indicator ("N" button) — it overlaps the AI Orb on mobile
+  devIndicators: false,
 };
 
 export default nextConfig;

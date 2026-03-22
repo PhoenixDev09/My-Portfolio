@@ -1,5 +1,5 @@
 'use client';
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Theme, RewrittenContent, CoreContent } from '@/lib/types';
 import { IconRenderer } from '../shapes/IconRenderer';
 import ContactSection from '../sections/ContactSection';
@@ -8,6 +8,28 @@ import FooterSection from '../sections/FooterSection';
 interface Props { theme: Theme; content: RewrittenContent; core: CoreContent; }
 
 export default function EditorialLayout({ theme, content, core }: Props) {
+    const [activeSkill, setActiveSkill] = useState<string | null>(null);
+    const [highlightedSkill, setHighlightedSkill] = useState<string | null>(null);
+    const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
+
+    useEffect(() => {
+        const handleSkillFilter = (e: Event) => {
+            const customEvent = e as CustomEvent<string | null>;
+            setHighlightedSkill(customEvent.detail);
+        };
+        window.addEventListener('sym_skill_filter', handleSkillFilter);
+        return () => window.removeEventListener('sym_skill_filter', handleSkillFilter);
+    }, []);
+
+    const toggleExpand = (id: string) => {
+        setExpandedProjects(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
+
     return (
         <main className={`layout layout--editorial anim-${theme.animationStyle}`}>
 
@@ -65,20 +87,40 @@ export default function EditorialLayout({ theme, content, core }: Props) {
                     <div className="editorial__rule" />
                 </div>
                 <div className="editorial__projects-list">
-                    {core.projects.map((proj, i) => (
-                        <article key={proj.id} className={`editorial__project editorial__project--${i % 2 === 0 ? 'left' : 'right'}`}>
-                            <span className="editorial__project-num">{String(i + 1).padStart(2, '0')}</span>
-                            <div className="editorial__project-content">
-                                <span className="editorial__project-year">{proj.year}</span>
-                                <h3 className="editorial__project-title">{proj.name}</h3>
-                                <p className="editorial__project-desc">{content.projectDescriptions[proj.id] || proj.description}</p>
-                                {proj.metrics && <p className="editorial__project-metrics">{proj.metrics}</p>}
-                                <div className="editorial__project-tags">
-                                    {proj.technologies.map(t => <span key={t} className="tech-tag">{t}</span>)}
+                    {core.projects.map((proj, i) => {
+                        const isExpanded = expandedProjects.has(proj.id);
+                        const hasSkill = highlightedSkill ? proj.technologies.includes(highlightedSkill) : false;
+                        const isDimmed = highlightedSkill && !hasSkill;
+                        const fullDesc = content.projectDescriptions[proj.id] || proj.description;
+                        const summaryDesc = fullDesc.length > 80 ? fullDesc.substring(0, 80) + '...' : fullDesc;
+
+                        return (
+                            <article key={proj.id} className={`editorial__project editorial__project--${i % 2 === 0 ? 'left' : 'right'}`} style={{ opacity: isDimmed ? 0.3 : 1, transition: 'opacity 0.3s' }}>
+                                <span className="editorial__project-num">{String(i + 1).padStart(2, '0')}</span>
+                                <div className="editorial__project-content">
+                                    <span className="editorial__project-year">{proj.year}</span>
+                                    <h3 className="editorial__project-title" style={{ color: hasSkill ? 'var(--color-primary)' : 'inherit' }}>{proj.name}</h3>
+                                    <p className="editorial__project-desc">{isExpanded ? fullDesc : summaryDesc}</p>
+                                    
+                                    <button 
+                                        onClick={() => toggleExpand(proj.id)}
+                                        style={{ background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-color)', padding: '0.3rem 0.8rem', marginTop: '1rem', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.8rem' }}
+                                    >
+                                        {isExpanded ? '— Less' : '+ Read the full column'}
+                                    </button>
+
+                                    {isExpanded && (
+                                        <div style={{ marginTop: '1.5rem' }}>
+                                            {proj.metrics && <p className="editorial__project-metrics">{proj.metrics}</p>}
+                                            <div className="editorial__project-tags">
+                                                {proj.technologies.map(t => <span key={t} className={`tech-tag ${t === highlightedSkill ? 'tech-tag--active' : ''}`}>{t}</span>)}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
-                            </div>
-                        </article>
-                    ))}
+                            </article>
+                        );
+                    })}
                 </div>
             </section>
 

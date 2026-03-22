@@ -58,7 +58,7 @@ export interface Typography {
     bodyWeight: string;
 }
 
-export type PageArchitecture = 'standard' | 'bento-grid' | 'terminal' | 'editorial' | 'cinematic' | 'manifesto';
+export type PageArchitecture = 'standard' | 'bento-grid' | 'terminal' | 'editorial' | 'cinematic' | 'manifesto' | 'timeline' | 'split-screen';
 
 export interface LayoutSchema {
     pageArchitecture: PageArchitecture;
@@ -117,25 +117,72 @@ export interface InteractionEvent {
     sessionId: string;
     themeHistoryId?: string;
     sectionId?: string;
-    eventType: 'scroll' | 'click' | 'time' | 'section_view';
+    // EC-04: Synced with RichInteractionEvent in useInteractionTracker — all 9 types
+    eventType: 'scroll' | 'click' | 'time' | 'section_view' | 'section_dwell' | 'scroll_velocity' | 'active_time' | 'text_selection' | 'cta_hover';
     value: number;
     metadata?: Record<string, unknown>;
+}
+
+export interface ColorDNA {
+    hueDeg: number;        // 0–360 dominant hue of primary color
+    saturation: number;    // 0–1 normalized CSS saturation
+    luminance: number;     // 0–1, low = dark, high = light
+}
+
+// The 5 psychological archetypes
+export type UserArchetype = 'reader' | 'explorer' | 'scanner' | 'investigator' | 'window-shopper';
+
+export type TypographicTone = 'narrative' | 'technical' | 'expressionist';
+
+export type DensityPreference = 'minimal' | 'moderate' | 'dense';
+
+export type IntentSignal = 'browsing' | 'evaluating' | 'deciding';
+
+export type ExploreAxis = 'architecture' | 'colorHue' | 'density' | 'typographicTone';
+
+export interface GenerationDirective {
+    mode: 'exploit' | 'explore' | 'shock';
+    // For exploit: precise constraints
+    colorDNA?: ColorDNA;
+    architecture?: PageArchitecture;
+    typographicTone?: TypographicTone;
+    densityPreference?: DensityPreference;
+    // For explore: which single axis to break
+    exploreAxis?: ExploreAxis;
+    // Anti-affinity: hard exclusions regardless of mode
+    antiArchitectures: PageArchitecture[];
+    antiColorContrast?: 'dark' | 'light';
+    // Human-readable reasoning for the Orb UI
+    orbReasoning: string;
 }
 
 export interface PreferenceContext {
     sessionId: string;
     visitCount: number;
     recentThemes: string[];
+    recentArchitectures: string[];
     avgEngagement: number;
     preferredComplexity: 'simple' | 'moderate' | 'complex';
-    dominantInteraction: 'reader' | 'explorer' | 'scanner';
-    // Top-performing structural patterns for this visitor type
+    // Layer 2 fields
+    archetype: UserArchetype;
+    intentSignal: IntentSignal;
+    topSection: string;
+    scrollVelocityMedian: number;
+    activeTimeSeconds: number;
+    selectedText: boolean;
+    // Layer 3 fields
+    colorDNA?: ColorDNA;
+    typographicTone: TypographicTone;
+    densityPreference: DensityPreference;
     topThemePatterns: Array<{
         iconSet: string;
         shapeLanguage: string;
         engagementScore: number;
     }>;
+    // Layer 4 Orchestrator output
+    directive: GenerationDirective;
 }
+
 
 // ─── API Response ─────────────────────────────────────────────────────────────
 export interface ThemeResponse {
@@ -143,6 +190,7 @@ export interface ThemeResponse {
     content: RewrittenContent;
     sessionId: string;
     visitNumber: number;
-    // ID of the ThemeHistory DB row — used to link interactions back to this exact render
     themeHistoryId: string;
+    orbReasoning?: string;
+    archetype?: string;
 }

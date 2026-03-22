@@ -8,6 +8,8 @@ import TerminalLayout from './layouts/TerminalLayout';
 import EditorialLayout from './layouts/EditorialLayout';
 import CinematicLayout from './layouts/CinematicLayout';
 import ManifestoLayout from './layouts/ManifestoLayout';
+import TimelineLayout from './layouts/TimelineLayout';
+import SplitScreenLayout from './layouts/SplitScreenLayout';
 
 interface LayoutCompilerProps {
     theme: Theme;
@@ -29,6 +31,10 @@ export default function LayoutCompiler({ theme, content, core }: LayoutCompilerP
             return <CinematicLayout theme={theme} content={content} core={core} />;
         case 'manifesto':
             return <ManifestoLayout theme={theme} content={content} core={core} />;
+        case 'timeline':
+            return <TimelineLayout theme={theme} content={content} core={core} />;
+        case 'split-screen':
+            return <SplitScreenLayout theme={theme} content={content} core={core} />;
         case 'standard':
         default:
             return <StandardLayout theme={theme} content={content} core={core} />;

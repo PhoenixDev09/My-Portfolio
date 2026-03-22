@@ -8,7 +8,7 @@ export const coreContent: CoreContent = {
     name: 'Lohith Kumar Parvathaneni',
     title: 'Full Stack Engineer & Creative Technologist',
     tagline: '2 years building systems that think, feel, and scale.',
-    bio: 'Lohith Kumar Parvathaneni is a full stack engineer with 2 years of professional experience designing and building digital systems. Specializing in AI-integrated web applications, distributed architectures, and developer tooling, Lohith has shipped products used by over 50,000 people. Lohith holds a Bachelor of Technology in Computer Science from Ramachandra College of Engineering(2023) and has worked with startups, and open-source communities to craft experiences that endure.',
+    bio: 'Lohith Kumar Parvathaneni is a full stack engineer with 2 years of professional experience designing and building digital systems. Specializing in AI-integrated web applications, distributed architectures, and developer tooling. Lohith holds a Bachelor of Technology in Computer Science from Ramachandra College of Engineering(2023) and has worked with startups, and open-source communities to craft experiences that endure.',
     yearsOfExperience: 2,
     skills: [
         'TypeScript', 'Spring Security', 'Microservices', 'Node.js', 'Python',

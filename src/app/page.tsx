@@ -1,10 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { ThemeResponse } from '@/lib/types';
 import { coreContent } from '@/lib/coreContent';
 import LayoutCompiler from '@/components/LayoutCompiler';
 import { useInteractionTracker } from '@/hooks/useInteractionTracker';
+import { EngineConsole } from '@/components/ui/EngineConsole';
+import { LayoutFeedback } from '@/components/ui/LayoutFeedback';
+
 
 function applyThemeCSSVars(theme: ThemeResponse['theme']) {
   const root = document.documentElement;
@@ -42,32 +45,42 @@ function applyThemeCSSVars(theme: ThemeResponse['theme']) {
 export default function HomePage() {
   const [themeResponse, setThemeResponse] = useState<ThemeResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isRefetching, setIsRefetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const sessionId = themeResponse?.sessionId ?? null;
   const themeHistoryId = themeResponse?.themeHistoryId ?? null;
+  const orbReasoning = themeResponse?.orbReasoning;
+  const archetype = themeResponse?.archetype;
 
   useInteractionTracker(sessionId, themeHistoryId);
 
-  useEffect(() => {
-    async function loadTheme() {
-      try {
-        const res = await fetch('/api/theme', { cache: 'no-store' });
-        if (!res.ok) {
-          const errData = await res.json();
-          throw new Error(errData.details || 'Theme generation failed');
-        }
-        const data: ThemeResponse = await res.json();
-        setThemeResponse(data);
-        applyThemeCSSVars(data.theme);
-      } catch (err) {
-        setError(String(err));
-      } finally {
-        setLoading(false);
+  const fetchThemeData = useCallback(async (isSoftReload = false) => {
+    if (isSoftReload) setIsRefetching(true);
+    try {
+      const res = await fetch('/api/theme', {
+        cache: 'no-store',
+        // AL-02: signal to server that this is a user-triggered morph, not a page load
+        // so visitCount is not incremented mid-session
+        headers: isSoftReload ? { 'x-morph': '1' } : {},
+      });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.details || 'Theme generation failed');
       }
+      const data: ThemeResponse = await res.json();
+      setThemeResponse(data);
+      applyThemeCSSVars(data.theme);
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      if (isSoftReload) setIsRefetching(false);
+      else setLoading(false);
     }
-
-    loadTheme();
   }, []);
+
+  useEffect(() => {
+    fetchThemeData();
+  }, [fetchThemeData]);
 
   if (loading) {
     return (
@@ -105,6 +118,14 @@ export default function HomePage() {
         theme={themeResponse.theme}
         content={themeResponse.content}
         core={coreContent}
+      />
+      <LayoutFeedback themeHistoryId={themeHistoryId} />
+      <EngineConsole 
+        currentTheme={themeResponse.theme} 
+        isRefetching={isRefetching} 
+        onShiftLens={() => fetchThemeData(true)}
+        orbReasoning={orbReasoning}
+        archetype={archetype}
       />
     </>
   );

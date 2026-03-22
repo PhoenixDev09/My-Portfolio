@@ -2,12 +2,12 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Symbolic AI Website Engine',
+  title: 'Lohith Kumar — Creative Technologist',
   description:
-    'A living interface that reinterprets the same truth through different symbolic metaphors on every visit. Powered by Gemini AI.',
-  keywords: ['AI', 'symbolic design', 'portfolio', 'generative interface'],
+    'Lohith Kumar Parvathaneni is a full stack engineer building systems that think, feel, and scale.',
+  keywords: ['Lohith Kumar', 'Creative Technologist', 'Full Stack Engineer', 'AI', 'portfolio'],
   openGraph: {
-    title: 'Symbolic AI Website Engine',
+    title: 'Lohith Kumar — Creative Technologist',
     description: 'A poetic AI interpreter of identity. Each visit, a new metaphor.',
     type: 'website',
   },

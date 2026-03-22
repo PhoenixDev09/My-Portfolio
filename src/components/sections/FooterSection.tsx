@@ -1,5 +1,5 @@
 'use client';
-
+import React from 'react';
 import { Theme, RewrittenContent, CoreContent } from '@/lib/types';
 
 interface Props {

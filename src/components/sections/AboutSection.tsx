@@ -1,5 +1,6 @@
 'use client';
 
+import React, { useState } from 'react';
 import { Theme, RewrittenContent, CoreContent } from '@/lib/types';
 import { IconRenderer } from '../shapes/IconRenderer';
 
@@ -11,6 +12,16 @@ interface Props {
 
 export default function AboutSection({ theme, content, core }: Props) {
     const style = theme.layoutSchema.sectionStyle;
+    const [activeSkill, setActiveSkill] = useState<string | null>(null);
+
+    const handleSkillClick = (skill: string) => {
+        const newSkill = activeSkill === skill ? null : skill;
+        setActiveSkill(newSkill);
+        // Dispatch event for ProjectsSection to listen to
+        if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('sym_skill_filter', { detail: newSkill }));
+        }
+    };
 
     return (
         <section
@@ -72,9 +83,15 @@ export default function AboutSection({ theme, content, core }: Props) {
 
                 <div className="skills-grid">
                     {core.skills.map((skill) => (
-                        <span key={skill} className="skill-pill" data-track={`skill-${skill}`}>
+                        <button 
+                            key={skill} 
+                            className={`skill-pill ${activeSkill === skill ? 'skill-pill--active' : ''}`} 
+                            data-track={`skill-filter-${skill}`}
+                            onClick={() => handleSkillClick(skill)}
+                            title="Click to locate projects using this skill"
+                        >
                             {skill}
-                        </span>
+                        </button>
                     ))}
                 </div>
             </div>

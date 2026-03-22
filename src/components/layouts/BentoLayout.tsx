@@ -1,5 +1,5 @@
 'use client';
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Theme, RewrittenContent, CoreContent } from '@/lib/types';
 import { IconRenderer } from '../shapes/IconRenderer';
 
@@ -7,6 +7,38 @@ interface Props { theme: Theme; content: RewrittenContent; core: CoreContent; }
 
 export default function BentoLayout({ theme, content, core }: Props) {
     const p = theme.colorPalette;
+    
+    // Phase 7 Interactive State
+    const [activeSkill, setActiveSkill] = useState<string | null>(null);
+    const [highlightedSkill, setHighlightedSkill] = useState<string | null>(null);
+    const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
+
+    useEffect(() => {
+        const handleSkillFilter = (e: Event) => {
+            const customEvent = e as CustomEvent<string | null>;
+            setHighlightedSkill(customEvent.detail);
+        };
+        window.addEventListener('sym_skill_filter', handleSkillFilter);
+        return () => window.removeEventListener('sym_skill_filter', handleSkillFilter);
+    }, []);
+
+    const handleSkillClick = (skill: string) => {
+        const newSkill = activeSkill === skill ? null : skill;
+        setActiveSkill(newSkill);
+        if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('sym_skill_filter', { detail: newSkill }));
+        }
+    };
+
+    const toggleExpand = (id: string) => {
+        setExpandedProjects(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
+
     return (
         <main className={`layout layout--bento anim-${theme.animationStyle}`}>
             <div className="bento-grid">
@@ -47,22 +79,65 @@ export default function BentoLayout({ theme, content, core }: Props) {
                 </div>
 
                 {/* Card 5–8: Projects — each in its own cell */}
-                {core.projects.slice(0, 4).map((proj, i) => (
-                    <div key={proj.id} className={`bento-card bento-card--project bento-card--project-${i}`} id={i === 0 ? 'projects' : undefined}>
-                        <span className="bento-project__year">{proj.year}</span>
-                        <h3 className="bento-project__name">{proj.name}</h3>
-                        <p className="bento-project__desc">{content.projectDescriptions[proj.id] || proj.description}</p>
-                        <div className="bento-project__tags">
-                            {proj.technologies.slice(0, 3).map(t => <span key={t} className="tech-tag">{t}</span>)}
+                {core.projects.slice(0, 4).map((proj, i) => {
+                    const isExpanded = expandedProjects.has(proj.id);
+                    const hasSkill = highlightedSkill ? proj.technologies.includes(highlightedSkill) : false;
+                    const isDimmed = highlightedSkill && !hasSkill;
+                    const fullDesc = content.projectDescriptions[proj.id] || proj.description;
+                    const summaryDesc = fullDesc.length > 80 ? fullDesc.substring(0, 80) + '...' : fullDesc;
+
+                    return (
+                        <div 
+                            key={proj.id} 
+                            className={`bento-card bento-card--project bento-card--project-${i} ${isDimmed ? 'project-card--dimmed' : ''} ${hasSkill ? 'project-card--highlighted' : ''}`} 
+                            id={i === 0 ? 'projects' : undefined}
+                            data-track={`project-view-${proj.id}`}
+                        >
+                            <span className="bento-project__year">{proj.year}</span>
+                            <h3 className="bento-project__name">{proj.name}</h3>
+                            <p className="bento-project__desc">{isExpanded ? fullDesc : summaryDesc}</p>
+                            
+                            <button 
+                                className="project-card__expand-btn" 
+                                onClick={() => toggleExpand(proj.id)}
+                            >
+                                {isExpanded ? '— Less details' : '+ View details'}
+                            </button>
+
+                            {isExpanded && (
+                                <div className="bento-project__tags" style={{marginTop: '1rem'}}>
+                                    {proj.technologies.slice(0, 3).map(t => (
+                                        <span key={t} className={`tech-tag ${t === highlightedSkill ? 'tech-tag--active' : ''}`}>{t}</span>
+                                    ))}
+                                </div>
+                            )}
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
 
                 {/* Card 9: Skills */}
                 <div className="bento-card bento-card--skills">
                     <h3 className="bento-card__title">Tools &amp; Stack</h3>
                     <div className="bento-skills">
-                        {core.skills.map(s => <span key={s} className="skill-tag">{s}</span>)}
+                        {core.skills.map(s => (
+                            <button 
+                                key={s} 
+                                className={`skill-pill ${activeSkill === s ? 'skill-pill--active' : ''}`} 
+                                onClick={() => handleSkillClick(s)}
+                                data-track={`skill-filter-${s}`}
+                                style={{
+                                    border: '1px solid var(--border-color)',
+                                    background: 'transparent',
+                                    color: 'var(--text-color)',
+                                    padding: '0.25rem 0.5rem',
+                                    borderRadius: '4px',
+                                    fontSize: '0.75rem',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                {s}
+                            </button>
+                        ))}
                     </div>
                 </div>
 

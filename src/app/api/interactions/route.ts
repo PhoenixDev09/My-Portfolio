@@ -25,14 +25,26 @@ export async function POST(request: NextRequest) {
             })),
         });
 
-        // Trigger async engagement score update using themeHistoryId
+        // AL-03: Group events by themeHistoryId and update engagement for ALL unique themes.
+        // Previously only events[0].themeHistoryId was used — if a 30-event batch spanned two
+        // themes (user morphed mid-session), only the first theme got its score updated.
         const { AdaptiveIntelligence } = await import('@/lib/ai/adaptiveIntelligence');
         const ai = new AdaptiveIntelligence();
-        const themeHistoryId = events[0]?.themeHistoryId;
-        const sessionId = events[0]?.sessionId;
-        if (sessionId && themeHistoryId) {
-            ai.updateEngagementScore(sessionId, themeHistoryId).catch(console.error);
+
+        // Build a map of themeHistoryId → sessionId from the batch
+        const themeSessionMap = new Map<string, string>();
+        for (const e of events) {
+            if (e.themeHistoryId && e.sessionId) {
+                themeSessionMap.set(e.themeHistoryId, e.sessionId);
+            }
         }
+
+        // Fire engagement updates for every unique theme in this batch (non-blocking)
+        await Promise.allSettled(
+            [...themeSessionMap.entries()].map(([themeHistoryId, sessionId]) =>
+                ai.updateEngagementScore(sessionId, themeHistoryId).catch(console.error)
+            )
+        );
 
         return NextResponse.json({ success: true, recorded: events.length });
     } catch (error) {
