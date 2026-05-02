@@ -245,6 +245,13 @@ Respond with a SINGLE JSON object matching this EXACT structure:
         let availableArchitectures = ALL_ARCHITECTURES.filter(a => !banned.has(a));
         if (availableArchitectures.length === 0) availableArchitectures = ['standard'];
 
+        // PREVENT CONFLICT: If the intelligence strictly requests an architecture that is banned
+        // (because it was recently used), we replace it with a valid architecture to ensure dynamic UX.
+        if (context.directive.architecture && banned.has(context.directive.architecture)) {
+            const randomFallback = availableArchitectures[Math.floor(Math.random() * availableArchitectures.length)];
+            context.directive.architecture = randomFallback as any;
+        }
+
         const prompt = this.buildPrompt(context, availableThemes, availableArchitectures);
 
         try {
