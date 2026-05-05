@@ -16,7 +16,7 @@ const BOOT_SEQUENCE = [
 export default function TerminalLayout({ theme, content, core }: Props) {
     const [bootLines, setBootLines] = useState<string[]>([]);
     const [bootDone, setBootDone] = useState(false);
-    const [activeSection, setActiveSection] = useState<'about' | 'projects' | 'contact' | null>(null);
+    const [activeSection, setActiveSection] = useState<'about' | 'experience' | 'projects' | 'contact' | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     
     // Phase 7 Interactive State
@@ -66,6 +66,7 @@ export default function TerminalLayout({ theme, content, core }: Props) {
     const handleCommand = (cmd: string) => {
         const c = cmd.trim().toLowerCase();
         if (c === 'about' || c === '--about') setActiveSection('about');
+        else if (c === 'experience' || c === '--experience') setActiveSection('experience');
         else if (c === 'projects' || c === '--projects') setActiveSection('projects');
         else if (c === 'contact' || c === '--contact') setActiveSection('contact');
         else if (c === 'clear') setActiveSection(null);
@@ -117,6 +118,7 @@ export default function TerminalLayout({ theme, content, core }: Props) {
                             <div className="terminal__line terminal__line--hint">
                                 <span>Available commands: </span>
                                 <button className="terminal__cmd-btn" onClick={() => setActiveSection('about')}>about</button>
+                                <button className="terminal__cmd-btn" onClick={() => setActiveSection('experience')}>experience</button>
                                 <button className="terminal__cmd-btn" onClick={() => setActiveSection('projects')}>projects</button>
                                 <button className="terminal__cmd-btn" onClick={() => setActiveSection('contact')}>contact</button>
                             </div>
@@ -140,6 +142,30 @@ export default function TerminalLayout({ theme, content, core }: Props) {
                                             </button>
                                         ))}
                                     </div>
+                                </div>
+                            )}
+
+                            {activeSection === 'experience' && core.experiences && (
+                                <div className="terminal__output" id="experience">
+                                    <div className="terminal__line"><span className="terminal__prompt">$</span><span> cat experience.log</span></div>
+                                    {core.experiences.map((exp) => (
+                                        <div key={exp.id} style={{ marginBottom: '1rem' }}>
+                                            <div className="terminal__line">
+                                                <span className="terminal__key">ROLE</span>
+                                                <span>     {exp.role} @ {exp.company}</span>
+                                            </div>
+                                            <div className="terminal__line">
+                                                <span className="terminal__key">PERIOD</span>
+                                                <span>   {exp.period} · {exp.location}</span>
+                                            </div>
+                                            {exp.bullets.slice(0, 3).map((b, i) => (
+                                                <div key={i} className="terminal__line terminal__line--output">
+                                                    <span style={{ color: 'var(--color-primary)', marginRight: '0.5rem' }}>▸</span>
+                                                    <span>{b}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ))}
                                 </div>
                             )}
 

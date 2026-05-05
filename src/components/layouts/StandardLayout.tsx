@@ -3,6 +3,7 @@ import React from 'react';
 import { Theme, RewrittenContent, CoreContent, SectionName } from '@/lib/types';
 import HeroSection from '../sections/HeroSection';
 import AboutSection from '../sections/AboutSection';
+import ExperienceSection from '../sections/ExperienceSection';
 import ProjectsSection from '../sections/ProjectsSection';
 import ContactSection from '../sections/ContactSection';
 import FooterSection from '../sections/FooterSection';
@@ -12,6 +13,7 @@ import { ShapeDecorations } from '../shapes/ShapeDecorations';
 const SECTION_REGISTRY: Record<SectionName, React.ComponentType<{ theme: Theme; content: RewrittenContent; core: CoreContent }>> = {
     hero: HeroSection,
     about: AboutSection,
+    experience: ExperienceSection,
     projects: ProjectsSection,
     contact: ContactSection,
     footer: FooterSection,

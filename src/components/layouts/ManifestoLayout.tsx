@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { Theme, RewrittenContent, CoreContent } from '@/lib/types';
+import ExperienceSection from '../sections/ExperienceSection';
 import ContactSection from '../sections/ContactSection';
 import FooterSection from '../sections/FooterSection';
 
@@ -103,6 +104,9 @@ export default function ManifestoLayout({ theme, content, core }: Props) {
                     ))}
                 </div>
             </section>
+
+            {/* ── Experience ── */}
+            <ExperienceSection theme={theme} content={content} core={core} />
 
             {/* ── Projects: Numbered full-bleed list ── */}
             <section className="mani-projects" id="projects" data-section="projects">

@@ -78,6 +78,29 @@ export default function BentoLayout({ theme, content, core }: Props) {
                     <p className="bento-card__body">{content.aboutBody}</p>
                 </div>
 
+                {/* Card 4b: Experience */}
+                {core.experiences && core.experiences.length > 0 && (
+                    <div className="bento-card bento-card--experience" id="experience">
+                        <h2 className="bento-card__title">{content.experienceTitle || 'Experience'}</h2>
+                        <div className="bento-exp-list">
+                            {core.experiences.map((exp) => (
+                                <div key={exp.id} className="bento-exp-item">
+                                    <div className="bento-exp-item__header">
+                                        <span className="bento-exp-item__role">{exp.role}</span>
+                                        <span className="bento-exp-item__period">{exp.period}</span>
+                                    </div>
+                                    <span className="bento-exp-item__company">{exp.company} · {exp.location}</span>
+                                    <ul className="bento-exp-item__bullets">
+                                        {exp.bullets.slice(0, 3).map((b, i) => (
+                                            <li key={i}>{b}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
                 {/* Card 5–8: Projects — each in its own cell */}
                 {core.projects.slice(0, 4).map((proj, i) => {
                     const isExpanded = expandedProjects.has(proj.id);

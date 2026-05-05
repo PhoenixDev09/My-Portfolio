@@ -463,6 +463,135 @@ img { max-width: 100%; }
 }
 
 /* ════════════════════════════════════════════
+   EXPERIENCE SECTION
+════════════════════════════════════════════ */
+.experience {
+  padding: calc(var(--spacing-unit) * 5) 2rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.exp-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.exp-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  overflow: hidden;
+  transition: border-color var(--transition);
+}
+.exp-card--open {
+  border-color: var(--color-primary);
+}
+
+.exp-card__header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  min-height: 44px;
+  transition: background var(--transition);
+}
+.exp-card__header:hover {
+  background: color-mix(in srgb, var(--color-primary) 4%, transparent);
+}
+
+.exp-card__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.exp-card__role {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text);
+  font-family: var(--font-heading);
+}
+
+.exp-card__company {
+  font-size: 0.88rem;
+  color: var(--color-primary);
+  font-weight: 500;
+}
+
+.exp-card__location {
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+.exp-card__right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-shrink: 0;
+}
+
+.exp-card__period {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  letter-spacing: 0.03em;
+}
+
+.exp-card__chevron {
+  font-size: 1.2rem;
+  color: var(--color-primary);
+  font-weight: 300;
+  line-height: 1;
+  width: 20px;
+  text-align: center;
+}
+
+.exp-card__bullets {
+  list-style: none;
+  padding: 0 1.5rem 1.25rem 1.5rem;
+  margin: 0;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding-top: 1rem;
+  animation: fadeSlideUp 0.25s ease both;
+}
+
+.exp-card__bullet {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  line-height: 1.65;
+  padding-left: 1.1rem;
+  position: relative;
+}
+.exp-card__bullet::before {
+  content: '▸';
+  position: absolute;
+  left: 0;
+  color: var(--color-primary);
+  font-size: 0.7rem;
+  top: 0.2em;
+}
+
+@media (max-width: 768px) {
+  .experience { padding: 3rem 1.25rem; }
+  .exp-card__header { padding: 1rem 1.25rem; flex-wrap: wrap; gap: 0.5rem; }
+  .exp-card__right { width: 100%; justify-content: space-between; }
+  .exp-card__bullets { padding: 0 1.25rem 1rem 1.25rem; padding-top: 0.75rem; }
+}
+
+@media (max-width: 480px) {
+  .experience { padding: 2.5rem 1rem; }
+}
+
+/* ════════════════════════════════════════════
    PROJECTS SECTION
 ════════════════════════════════════════════ */
 .projects {
@@ -1150,6 +1279,19 @@ img { max-width: 100%; }
 .bento-skills { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.75rem; }
 
 /* Contact */
+/* Bento experience card */
+.bento-card--experience { grid-column: span 12; }
+.bento-exp-list { display: flex; flex-direction: column; gap: 1.25rem; margin-top: 0.5rem; }
+.bento-exp-item { padding-bottom: 1.25rem; border-bottom: 1px solid var(--color-border); }
+.bento-exp-item:last-child { border-bottom: none; padding-bottom: 0; }
+.bento-exp-item__header { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; margin-bottom: 0.2rem; }
+.bento-exp-item__role { font-size: 0.95rem; font-weight: 700; color: var(--color-text); }
+.bento-exp-item__period { font-size: 0.75rem; color: var(--color-text-muted); white-space: nowrap; }
+.bento-exp-item__company { font-size: 0.8rem; color: var(--color-primary); display: block; margin-bottom: 0.5rem; }
+.bento-exp-item__bullets { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.3rem; }
+.bento-exp-item__bullets li { font-size: 0.8rem; color: var(--color-text-muted); line-height: 1.5; padding-left: 1rem; position: relative; }
+.bento-exp-item__bullets li::before { content: '▸'; position: absolute; left: 0; color: var(--color-primary); font-size: 0.65rem; top: 0.2em; }
+
 .bento-contact__cta    { display: inline-flex; align-items: center; gap: 0.5rem; margin-top: 1rem; }
 .bento-contact__socials { display: flex; gap: 1rem; margin-top: 1rem; }
 .bento-social { font-size: 0.8rem; color: var(--color-text-muted); text-decoration: none; transition: color var(--transition); }

@@ -52,10 +52,12 @@ export default function AboutSection({ theme, content, core }: Props) {
                                 <span className="about__meta-label">Experience</span>
                                 <span className="about__meta-value">{core.yearsOfExperience} Years</span>
                             </div>
-                            <div className="about__meta-item">
-                                <span className="about__meta-label">Education</span>
-                                <span className="about__meta-value">B.Tech, Computer Science — Ramachandra College of Engineering (2023)</span>
-                            </div>
+                            {core.education && (
+                                <div className="about__meta-item">
+                                    <span className="about__meta-label">Education</span>
+                                    <span className="about__meta-value">{core.education}</span>
+                                </div>
+                            )}
                         </div>
                     </div>
 

@@ -48,6 +48,16 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({ success: true, recorded: events.length });
     } catch (error) {
+        // Interaction tracking is non-critical telemetry — a DB connectivity failure
+        // (e.g., Neon cold-start, transient network blip) must never propagate as a
+        // client-visible 500. Return 202 so the tracker doesn't surface console errors
+        // to Sandeep's visitors while still logging the issue server-side for debugging.
+        const message = error instanceof Error ? error.message : String(error);
+        const isConnectError = message.includes("Can't reach database") || message.includes('connect');
+        if (isConnectError) {
+            console.warn('[/api/interactions] DB unreachable — interaction data dropped for this batch:', message);
+            return NextResponse.json({ success: false, dropped: true, reason: 'db_unavailable' }, { status: 202 });
+        }
         console.error('[/api/interactions] Error:', error);
         return NextResponse.json(
             { error: 'Failed to record interactions' },

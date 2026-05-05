@@ -29,8 +29,7 @@ Architecture: ${theme.layoutSchema.pageArchitecture}
 - Title: ${core.title}
 - Background & Education: ${core.bio}
 - Years of experience: ${core.yearsOfExperience}
-- Users reached: 50,000+
-- Countries: 12
+- Key metrics: ${core.stats.map(s => `${s.label}: ${s.value}`).join(', ')}
 - Skills: ${core.skills.join(', ')}
 - Projects:
 ${projectDescPrompt}
@@ -58,12 +57,10 @@ Respond with this EXACT JSON:
   "heroCTA": "string (3-4 words CTA)",
   "aboutTitle": "string (section title like 'About' but metaphor-flavored)",
   "aboutBody": "string (3-4 sentences rewriting the bio through the metaphor, keep ALL facts)",
+  "experienceTitle": "string (section title like 'Experience' but metaphor-flavored)",
   "projectsTitle": "string (section title for projects, metaphor-flavored)",
   "projectDescriptions": {
-    "proj-1": "string (rewritten description emphasizing the architectural tone)",
-    "proj-2": "string (rewritten description)",
-    "proj-3": "string (rewritten description)",
-    "proj-4": "string (rewritten description)"
+${core.projects.map((p, i) => `    "${p.id}": "string (rewritten description${i === 0 ? ' emphasizing the architectural tone' : ''})"` ).join(',\n')}
   },
   "contactTitle": "string (contact title, metaphor-flavored)",
   "contactBody": "string (1-2 sentences inviting contact)",
@@ -71,7 +68,7 @@ Respond with this EXACT JSON:
 }`;
 
             let parsed: RewrittenContent;
-            
+
             // Prefer Groq to save Gemini quotas
             if (process.env.GROQ_API_KEY) {
                 const { Groq } = require('groq-sdk');
@@ -90,6 +87,14 @@ Respond with this EXACT JSON:
                 });
                 const result = await model.generateContent(prompt);
                 parsed = JSON.parse(result.response.text());
+            }
+
+            // Guard: if AI returned an empty or incomplete object, fall through to fallback
+            const requiredKeys: (keyof RewrittenContent)[] = ['heroHeadline', 'aboutBody', 'experienceTitle', 'projectDescriptions'];
+            const isValid = requiredKeys.every(k => parsed[k]);
+            if (!isValid) {
+                console.warn('[SymbolicContentRewriter] Incomplete response — using fallback');
+                return this.getFallbackContent(core, theme);
             }
 
             this.validateFacts(parsed, core);
@@ -123,6 +128,7 @@ Respond with this EXACT JSON:
             heroCTA: 'Explore My Work',
             aboutTitle: 'About',
             aboutBody: core.bio,
+            experienceTitle: 'Experience',
             projectsTitle: 'Projects',
             projectDescriptions,
             contactTitle: 'Contact',

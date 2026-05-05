@@ -2,12 +2,12 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Lohith Kumar — Creative Technologist',
+  title: 'Sandeep Vadlamudi — Data Analyst',
   description:
-    'Lohith Kumar Parvathaneni is a full stack engineer building systems that think, feel, and scale.',
-  keywords: ['Lohith Kumar', 'Creative Technologist', 'Full Stack Engineer', 'AI', 'portfolio'],
+    'Sandeep Vadlamudi is a Data Analyst with 3+ years of experience in data reconciliation, operational reporting, and KPI analysis.',
+  keywords: ['Sandeep Vadlamudi', 'Data Analyst', 'Power BI', 'SQL', 'Healthcare Data', 'portfolio'],
   openGraph: {
-    title: 'Lohith Kumar — Creative Technologist',
+    title: 'Sandeep Vadlamudi — Data Analyst',
     description: 'A poetic AI interpreter of identity. Each visit, a new metaphor.',
     type: 'website',
   },

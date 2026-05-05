@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import Groq from 'groq-sdk';
-import { Theme, PreferenceContext, AnimationStyle } from '../types';
+import { Theme, PreferenceContext, AnimationStyle, PageArchitecture } from '../types';
 import { prisma } from '../db';
 
 const THEME_CATALOG = [
@@ -39,7 +39,7 @@ const FALLBACK_THEME: Theme = {
     layoutSchema: {
         pageArchitecture: 'standard',
         heroStyle: 'immersive-full',
-        sectionOrder: ['hero', 'about', 'projects', 'contact', 'footer'],
+        sectionOrder: ['hero', 'about', 'experience', 'projects', 'contact', 'footer'],
         sectionStyle: 'prose-block',
         gridStyle: 'asymmetric',
         contactStyle: 'minimal-form',
@@ -142,6 +142,14 @@ ${exploredAxis === 'typographicTone' ? '- Typography: Completely change the type
             ? `\n## ANTI-AFFINITY (ABSOLUTE EXCLUSIONS)\nDo NOT use these architectures — they have been flagged as poor performers for this visitor:\n- Banned architectures: ${directive.antiArchitectures.join(', ')}`
             : '';
 
+        // ── TC-01: Combination History Block ─────────────────────────────────
+        // Every (theme, architecture) pair below has already been served to this visitor.
+        // The combination space must stay diverse — treat each pair as a one-time experience.
+        const usedPairs = context.usedCombinations || [];
+        const comboBlock = usedPairs.length > 0
+            ? `\n## COMBINATION HISTORY — NEVER REPEAT THESE PAIRS\nEach entry is a theme + architecture that was already shown. You MUST choose a combination not on this list:\n${usedPairs.map(c => `- "${c.theme}" × "${c.architecture}"`).join('\n')}\nRule: changing the theme name alone is NOT enough if the architecture stays the same as a prior pairing with that theme. Both axes must produce a fresh combination.`
+            : '';
+
         // ── C: Behavioral Context ────────────────────────────────────────────
         const behaviorBlock = `
 ## Visitor Behavioral Profile
@@ -158,6 +166,7 @@ ${exploredAxis === 'typographicTone' ? '- Typography: Completely change the type
 ${behaviorBlock}
 ${constraintBlock}
 ${antiBlock}
+${comboBlock}
 
 ## Available Themes
 ${availableThemes.join(', ')}
@@ -197,7 +206,7 @@ Respond with a SINGLE JSON object matching this EXACT structure:
   "layoutSchema": {
     "pageArchitecture": "${availableArchitectures.join('|')}",
     "heroStyle": "immersive-full|minimal-centered|split-screen|typographic",
-    "sectionOrder": ["hero","about","projects","contact","footer"],
+    "sectionOrder": ["hero","about","experience","projects","contact","footer"],
     "sectionStyle": "prose-block|card-mosaic|timeline|constellation",
     "gridStyle": "organic-flow|rigid-grid|radial|asymmetric",
     "contactStyle": "minimal-form|call-card|constellation|terminal",
@@ -232,11 +241,18 @@ Respond with a SINGLE JSON object matching this EXACT structure:
     }
 
     async generate(context: PreferenceContext): Promise<Theme> {
-        const availableThemes = THEME_CATALOG.filter(
+        // TC-01: Build the used-combination set (theme::architecture pairs) from full history.
+        // This is the pair-level deduplication layer — independent from per-theme and per-arch cooldowns.
+        const usedComboSet = new Set(
+            (context.usedCombinations || []).map(c => `${c.theme}::${c.architecture}`)
+        );
+
+        // Step 1 — Per-theme cooldown: exclude last 4 theme names
+        const themesByNameCooldown = THEME_CATALOG.filter(
             (t) => !context.recentThemes.slice(0, 4).includes(t)
         );
 
-        // Exclude anti-affinity architectures AND recent 2 architectures
+        // Step 2 — Per-architecture cooldown: exclude last 2 + anti-affinity
         const ALL_ARCHITECTURES = ['standard', 'bento-grid', 'terminal', 'editorial', 'cinematic', 'manifesto', 'timeline', 'split-screen'];
         const banned = new Set([
             ...context.directive.antiArchitectures,
@@ -245,11 +261,23 @@ Respond with a SINGLE JSON object matching this EXACT structure:
         let availableArchitectures = ALL_ARCHITECTURES.filter(a => !banned.has(a));
         if (availableArchitectures.length === 0) availableArchitectures = ['standard'];
 
+        // Step 3 — TC-01 Pair-level filter: drop any theme that has NO fresh architecture remaining.
+        // Example: "Forest Trail" was used with every available architecture → it has nowhere new to go.
+        // Fallback: if this filter would empty the pool entirely, revert to name-cooldown-only list.
+        const themesWithFreshCombos = themesByNameCooldown.filter(theme => {
+            const usedArchsForTheme = availableArchitectures.filter(arch =>
+                usedComboSet.has(`${theme}::${arch}`)
+            );
+            // Keep if at least one (theme, arch) pair is still fresh
+            return usedArchsForTheme.length < availableArchitectures.length;
+        });
+        const availableThemes = themesWithFreshCombos.length > 0 ? themesWithFreshCombos : themesByNameCooldown;
+
         // PREVENT CONFLICT: If the intelligence strictly requests an architecture that is banned
         // (because it was recently used), we replace it with a valid architecture to ensure dynamic UX.
         if (context.directive.architecture && banned.has(context.directive.architecture)) {
             const randomFallback = availableArchitectures[Math.floor(Math.random() * availableArchitectures.length)];
-            context.directive.architecture = randomFallback as any;
+            context.directive.architecture = randomFallback as PageArchitecture;
         }
 
         const prompt = this.buildPrompt(context, availableThemes, availableArchitectures);
@@ -258,40 +286,47 @@ Respond with a SINGLE JSON object matching this EXACT structure:
             const usedModel = this.shouldUseGroq(context) ? 'groq-llama3-70b' : 'gemini-2.5-flash-lite';
             console.log(`[ThemeGenerationEngine] Using model: ${usedModel} | Archetype: ${context.archetype} | Directive: ${context.directive.mode}`);
 
-            if (this.shouldUseGroq(context)) {
-                return await this.generateWithGroq(prompt);
+            const result = this.shouldUseGroq(context)
+                ? await this.generateWithGroq(prompt)
+                : await this.generateWithGemini(prompt);
+
+            // TC-01: Post-generation duplicate check — warn if the AI ignored the constraint.
+            // We serve the result anyway (better a rare repeat than blocking the user), but the
+            // log makes regressions visible during development.
+            const generatedCombo = `${result.themeName}::${result.layoutSchema?.pageArchitecture}`;
+            if (usedComboSet.has(generatedCombo)) {
+                console.warn(`[ThemeGenerationEngine] ⚠ Duplicate combination served: ${generatedCombo}. Combination history length: ${usedComboSet.size}. Check prompt constraints.`);
             } else {
-                return await this.generateWithGemini(prompt);
+                console.log(`[ThemeGenerationEngine] ✓ Fresh combination: ${generatedCombo}`);
             }
+
+            return result;
         } catch (error) {
             console.warn('[ThemeGenerationEngine] API failed. Attempting DB fallback...', error);
 
             try {
-                // LM-02: Threshold lowered to 0.3 (was 0.7) — 0.7 was never met in early sessions
-                // since engagementScore needs 84s + 70% scroll + 7 clicks to reach 0.7.
-                const highPerformingTheme = await prisma.themeHistory.findFirst({
-                    where: {
-                        engagementScore: { gt: 0.3 },
-                        themeName: { notIn: context.recentThemes },
-                    },
-                    orderBy: { engagementScore: 'desc' }
-                });
+                // LM-02: Try best-scoring theme not recently seen; fall back to any scored theme.
+                // Two separate thresholds prevent an empty result on a cold DB.
+                const highPerformingTheme =
+                    await prisma.themeHistory.findFirst({
+                        where: { engagementScore: { gt: 0.3 }, themeName: { notIn: context.recentThemes } },
+                        orderBy: { engagementScore: 'desc' },
+                    }) ??
+                    await prisma.themeHistory.findFirst({
+                        where: { engagementScore: { gt: 0 } },
+                        orderBy: { engagementScore: 'desc' },
+                    });
 
-                const finalFallbackTheme = highPerformingTheme || await prisma.themeHistory.findFirst({
-                    where: { engagementScore: { gt: 0.3 } },
-                    orderBy: { engagementScore: 'desc' }
-                });
-
-                if (finalFallbackTheme && finalFallbackTheme.themeJson) {
-                    console.log(`[ThemeGenerationEngine] DB Fallback: '${finalFallbackTheme.themeName}'`);
-                    const dbTheme = JSON.parse(finalFallbackTheme.themeJson) as Theme;
+                if (highPerformingTheme?.themeJson) {
+                    console.log(`[ThemeGenerationEngine] DB Fallback: '${highPerformingTheme.themeName}'`);
+                    const dbTheme = JSON.parse(highPerformingTheme.themeJson) as Theme;
                     return {
                         ...dbTheme,
                         animationStyle: dbTheme.animationStyle || 'flowing',
                         layoutSchema: {
                             ...dbTheme.layoutSchema,
                             pageArchitecture: dbTheme.layoutSchema?.pageArchitecture || 'standard',
-                        }
+                        },
                     };
                 }
             } catch (dbError) {

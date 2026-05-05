@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
         if (isNewSession) {
             response.cookies.set('sym_session', sessionId, {
                 httpOnly: true,
-                sameSite: 'lax',
+                sameSite: 'strict',
                 maxAge: 60 * 60 * 24 * 30, // 30 days
                 path: '/',
             });

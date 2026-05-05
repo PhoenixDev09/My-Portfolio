@@ -4,6 +4,7 @@ import React from 'react';
 import { Theme, RewrittenContent, CoreContent } from '@/lib/types';
 import HeroSection from '../sections/HeroSection';
 import AboutSection from '../sections/AboutSection';
+import ExperienceSection from '../sections/ExperienceSection';
 import ProjectsSection from '../sections/ProjectsSection';
 import ContactSection from '../sections/ContactSection';
 import FooterSection from '../sections/FooterSection';
@@ -31,6 +32,13 @@ export default function TimelineLayout({ theme, content, core }: Props) {
                 <div className="timeline-marker"></div>
                 <div className="timeline-content">
                     <AboutSection theme={theme} content={content} core={core} />
+                </div>
+            </div>
+
+            <div className="timeline-node timeline-experience">
+                <div className="timeline-marker"></div>
+                <div className="timeline-content">
+                    <ExperienceSection theme={theme} content={content} core={core} />
                 </div>
             </div>
 

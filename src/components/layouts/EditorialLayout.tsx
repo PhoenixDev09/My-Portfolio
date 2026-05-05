@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Theme, RewrittenContent, CoreContent } from '@/lib/types';
 import { IconRenderer } from '../shapes/IconRenderer';
+import ExperienceSection from '../sections/ExperienceSection';
 import ContactSection from '../sections/ContactSection';
 import FooterSection from '../sections/FooterSection';
 
@@ -78,6 +79,9 @@ export default function EditorialLayout({ theme, content, core }: Props) {
                     <p className="editorial__quote">&ldquo;{theme.philosophy}&rdquo;</p>
                 </aside>
             </article>
+
+            {/* Experience section */}
+            <ExperienceSection theme={theme} content={content} core={core} />
 
             {/* Projects section — editorial cards */}
             <section className="editorial__projects" id="projects">

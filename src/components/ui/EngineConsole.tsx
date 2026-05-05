@@ -272,9 +272,22 @@ export function EngineConsole({ currentTheme, isRefetching, onShiftLens, orbReas
 
             {/* Loading Indicator during soft morph */}
             {isRefetching && (
-                <div className="ai-orb-speech-bubble right-aligned">
+                <div
+                    className="ai-orb-speech-bubble right-aligned"
+                    style={isMobile ? {
+                        position: 'fixed',
+                        bottom: '5rem',
+                        left: '1rem',
+                        right: '1rem',
+                        transform: 'none',
+                        top: 'auto',
+                        width: 'auto',
+                        maxWidth: '100%',
+                        borderBottomRightRadius: '4px',
+                    } : {}}
+                >
                     <div className="ai-orb-synth">
-                        <span className="spinner-small" /> 
+                        <span className="spinner-small" />
                         <p>Morphing layout structure...</p>
                     </div>
                 </div>

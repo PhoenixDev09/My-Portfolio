@@ -21,11 +21,18 @@ build/
 .env.test.local
 .env.production.local
 
-# SQLite database — contains user data, not for git
+# Local-only Prisma schema (SQLite dev setup — not needed in the public repo)
+prisma/schema.local.prisma
+
+# SQLite database files — contain user data, not for git
 prisma/dev.db
 prisma/dev.db-journal
+prisma/dev.db.bak
 prisma/*.db
 prisma/*.db-journal
+prisma/*.db.bak
+prisma/*.db-shm
+prisma/*.db-wal
 
 # Debug
 npm-debug.log*
@@ -48,3 +55,6 @@ verify-pipeline.mjs
 list-models.mjs
 # Note: bootstrap-dataset.mjs, inspect-db.mjs, verify-db.mjs, truncate-db.mjs are committed
 # as they are useful developer tools for the project.
+
+# System design / internal protocol docs — not for public repo
+SYMBOLIC_ENGINE_PROTOCOL.md

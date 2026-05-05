@@ -147,14 +147,17 @@ function buildArchetype(params: {
     directionChanges: number;
     selectedText: boolean;
     contactDwellTime: number;
+    experienceDwellTime: number; // AL-09: experience section deep-read is a strong hiring-intent signal
 }): { archetype: UserArchetype; intentSignal: IntentSignal } {
-    const { visitCount, avgEngagement, recentEngagement, avgScroll, avgTime, totalClicks, scrollVelocityMedian, directionChanges, selectedText, contactDwellTime } = params;
+    const { visitCount, avgEngagement, recentEngagement, avgScroll, avgTime, totalClicks, scrollVelocityMedian, directionChanges, selectedText, contactDwellTime, experienceDwellTime } = params;
 
     // AL-08: Positive signals checked FIRST — strong engagement overrides visit history.
     // Window Shopper is now LAST (only when zero positive engagement signals exist).
 
-    // Investigator: dwells on contact, selects text, deep scroll + many clicks
-    if (selectedText || contactDwellTime > 15 || (avgScroll > 80 && totalClicks > 3)) {
+    // Investigator: dwells on contact OR experience section, selects text, deep scroll + many clicks.
+    // AL-09: Reading work history carefully (experienceDwellTime > 15s) is as strong a hiring-intent
+    // signal as dwelling on contact — a recruiter vetting credentials triggers this before reaching contact.
+    if (selectedText || contactDwellTime > 15 || experienceDwellTime > 15 || (avgScroll > 80 && totalClicks > 3)) {
         return { archetype: 'investigator', intentSignal: 'deciding' };
     }
 
@@ -212,6 +215,13 @@ function orchestrate(params: {
     }
 
     if (archetype === 'investigator') {
+        // AL-09: Tailor the orb message based on WHICH section triggered investigator classification
+        const orbReasoning = topSection === 'contact'
+            ? 'You spent significant time on the Contact section. I am optimizing for a professional, information-dense layout.'
+            : topSection === 'experience'
+                ? 'You read through the work history carefully — a strong signal of due diligence. Switching to an editorial layout built for credential evaluation.'
+                : 'You appear to be carefully evaluating the portfolio. I am switching to a clean editorial layout for easier decision-making.';
+
         return {
             mode: 'exploit',
             architecture: 'editorial',
@@ -219,9 +229,7 @@ function orchestrate(params: {
             densityPreference: 'moderate',
             colorDNA: colorDNA ? { ...colorDNA, luminance: colorDNA.luminance > 0.5 ? 0.92 : 0.08 } : undefined,
             antiArchitectures,
-            orbReasoning: topSection === 'contact'
-                ? 'You spent significant time on the Contact section. I am optimizing for a professional, information-dense layout.'
-                : 'You appear to be carefully evaluating the portfolio. I am switching to a clean editorial layout for easier decision-making.',
+            orbReasoning,
         };
     }
 
@@ -329,7 +337,7 @@ export class AdaptiveIntelligence {
             const themeHistory = session.themeHistory as { themeJson?: string; themeName: string; engagementScore: number; explicitFeedback?: string | null }[];
             const interactions = session.interactions as { eventType: string; value: number; sectionId?: string | null }[];
 
-            // Recent themes & architectures
+            // Recent themes & architectures (display/cooldown helpers)
             const recentThemes = themeHistory.slice(0, 5).map(t => t.themeName);
             const recentArchitectures = themeHistory.slice(0, 5).map(t => {
                 try {
@@ -337,6 +345,18 @@ export class AdaptiveIntelligence {
                     return parsed?.layoutSchema?.pageArchitecture;
                 } catch { return null; }
             }).filter(Boolean) as string[];
+
+            // TC-01: Full combination history — built from ALL 20 records using flatMap so
+            // theme+architecture pairs stay correctly joined even when some records have no arch data.
+            // This is the source of truth for pair-level deduplication in the theme generator.
+            const usedCombinations: Array<{ theme: string; architecture: string }> = themeHistory
+                .flatMap(t => {
+                    try {
+                        const parsed = JSON.parse(t.themeJson || '{}');
+                        const arch: string | undefined = parsed?.layoutSchema?.pageArchitecture;
+                        return arch ? [{ theme: t.themeName, architecture: arch }] : [];
+                    } catch { return []; }
+                });
 
             // Average engagement score
             const avgEngagement = themeHistory.length > 0
@@ -378,6 +398,7 @@ export class AdaptiveIntelligence {
             });
             const topSection = Object.entries(sectionDwellProfile).sort((a, b) => b[1] - a[1])[0]?.[0] || 'hero';
             const contactDwellTime = sectionDwellProfile['contact'] || 0;
+            const experienceDwellTime = sectionDwellProfile['experience'] || 0; // AL-09: track experience section dwell
             const selectedText = selectionEvents.length > 0;
 
             // Preferred complexity
@@ -403,6 +424,7 @@ export class AdaptiveIntelligence {
                 directionChanges,
                 selectedText,
                 contactDwellTime,
+                experienceDwellTime, // AL-09
             });
 
             // ── Layer 3: Aesthetic DNA Extraction ──────────────────────────
@@ -469,6 +491,7 @@ export class AdaptiveIntelligence {
                 visitCount: session.visitCount,
                 recentThemes,
                 recentArchitectures,
+                usedCombinations, // TC-01
                 avgEngagement,
                 preferredComplexity,
                 archetype,
@@ -490,6 +513,7 @@ export class AdaptiveIntelligence {
                 visitCount: 1,
                 recentThemes: [],
                 recentArchitectures: [],
+                usedCombinations: [], // TC-01
                 avgEngagement: 0.5,
                 preferredComplexity: 'moderate',
                 archetype: 'scanner',

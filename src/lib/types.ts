@@ -5,8 +5,10 @@ export interface CoreContent {
     tagline: string;
     bio: string;
     yearsOfExperience: number;
+    education?: string;
     skills: string[];
     projects: Project[];
+    experiences?: Experience[];
     stats: Stat[];
     contact: ContactInfo;
     socialLinks: SocialLink[];
@@ -36,6 +38,15 @@ export interface ContactInfo {
 export interface SocialLink {
     platform: string;
     url: string;
+}
+
+export interface Experience {
+    id: string;
+    role: string;
+    company: string;
+    location: string;
+    period: string;
+    bullets: string[];
 }
 
 // ─── Theme & Design System ────────────────────────────────────────────────────
@@ -70,7 +81,7 @@ export interface LayoutSchema {
     spacing: 'compact' | 'airy' | 'expansive';
 }
 
-export type SectionName = 'hero' | 'about' | 'projects' | 'contact' | 'footer';
+export type SectionName = 'hero' | 'about' | 'experience' | 'projects' | 'contact' | 'footer';
 
 export type AnimationStyle =
     | 'flowing'
@@ -105,6 +116,7 @@ export interface RewrittenContent {
     heroCTA: string;
     aboutTitle: string;
     aboutBody: string;
+    experienceTitle: string;
     projectsTitle: string;
     projectDescriptions: Record<string, string>;
     contactTitle: string;
@@ -161,6 +173,9 @@ export interface PreferenceContext {
     visitCount: number;
     recentThemes: string[];
     recentArchitectures: string[];
+    // TC-01: Full combination history so the engine can deduplicate at the PAIR level,
+    // not just independently by theme name or architecture name.
+    usedCombinations: Array<{ theme: string; architecture: string }>;
     avgEngagement: number;
     preferredComplexity: 'simple' | 'moderate' | 'complex';
     // Layer 2 fields

@@ -4,6 +4,7 @@ import React from 'react';
 import { Theme, RewrittenContent, CoreContent } from '@/lib/types';
 import HeroSection from '../sections/HeroSection';
 import AboutSection from '../sections/AboutSection';
+import ExperienceSection from '../sections/ExperienceSection';
 import ProjectsSection from '../sections/ProjectsSection';
 import ContactSection from '../sections/ContactSection';
 import FooterSection from '../sections/FooterSection';
@@ -28,6 +29,7 @@ export default function SplitScreenLayout({ theme, content, core }: Props) {
             
             <div className="split-right">
                 <div className="split-right-inner">
+                    <ExperienceSection theme={theme} content={content} core={core} />
                     <ProjectsSection theme={theme} content={content} core={core} />
                 </div>
             </div>

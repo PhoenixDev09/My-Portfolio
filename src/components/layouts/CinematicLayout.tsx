@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Theme, RewrittenContent, CoreContent } from '@/lib/types';
 import { IconRenderer } from '../shapes/IconRenderer';
+import ExperienceSection from '../sections/ExperienceSection';
 import ContactSection from '../sections/ContactSection';
 import FooterSection from '../sections/FooterSection';
 
@@ -120,7 +121,10 @@ export default function CinematicLayout({ theme, content, core }: Props) {
                 </div>
             </section>
 
-            {/* ── ACT 3: Projects ── */}
+            {/* ── ACT 3: Experience ── */}
+            <ExperienceSection theme={theme} content={content} core={core} />
+
+            {/* ── ACT 4: Projects ── */}
             <section className="cin-act cin-act--projects" id="projects" data-section="projects">
                 <div className="cin-act__number" aria-hidden="true">03</div>
                 <div className="cin-act__inner">
